@@ -1,2 +1,7 @@
 metrics_address = "localhost:8234"
 no_prometheus = false
+
+# Use plain HTTP for connecting to `hp089.utah.cloudlab.us`.
+[[resolver.host."hp089.utah.cloudlab.us".mirrors]]
+host = "hp089.utah.cloudlab.us"
+insecure = true
