@@ -22,12 +22,11 @@ You will need the following to use firecracker-containerd with support for remot
 
 For more details about these requirements please see the base [getting started guide](https://github.com/firecracker-microvm/firecracker-containerd/blob/57126558036c4a34a02967865467b2161ca9227e/docs/getting-started.md)
 
-
 ## Build firecracker-containerd
 
 The following commands will build firecracker-containerd (including the necessary shim and agent) as well as Firecracker. It will install these binaries to `/usr/local/bin`. You do not have to install any of the components in this guide, however all of the example configuration assumes the components have been installed and will need modification if you choose to skip this step.
 
-```
+```bash
 make
 make install
 make firecracker
@@ -38,47 +37,50 @@ make install-firecracker
 
 We generally recommend that users download our AWS-provided Linux kernel that is known to work with Firecracker. Unfortunately this kernel does not support FUSE which is needed for remote snapshotters. We do provide make rules to build a working kernel with FUSE support:
 
-```
+```bash
 make kernel
 make install-kernel
 ```
 
 By default, this will build a Linux 4.14 kernel. If you would like to use 5.10, use:
-```
+
+```bash
 KERNEL_VERSION=5.10 make kernel
 KERNEL_VERSION=5.10 make install-kernel
 ```
 
-[Note: Firecracker only officially supports 4.14 and 5.10](https://github.com/firecracker-microvm/firecracker/blob/v1.1.0/docs/kernel-policy.md). 
-
+[Note: Firecracker only officially supports 4.14 and 5.10](https://github.com/firecracker-microvm/firecracker/blob/v1.1.0/docs/kernel-policy.md).
 
 ## Build a Firecracker rootfs with a remote snapshotter
 
 The firecracker-containerd repository includes an image builder component that constructs a Debian-based root filesystem for the VM. The default installs the necessary firecracker-containerd agent as well as sets up an overlay to allow re-using the read only image across multiple VMs. We also supply a variant that provides these same features and additionally bundles the stargz-snapshotter.
 
-```
+> **Note:** If you want to configure stargz-snapshotter (e.g. [add registries mirrors or insecure registries](https://github.com/containerd/stargz-snapshotter/blob/v0.14.3/docs/overview.md#registry-mirrors-and-insecure-connection)), you can do so by modifying the `tools\image-builder\files_stargz\etc\containerd-stargz-grpc\config.toml` file.
+
+```bash
 make image-stargz
 make install-stargz-rootfs
 ```
 
 ## Setup the demo network
 
-While networking support is optional for firecracker-containerd in general, it is required for remote snapshotter support because the remote snapshotter will lazily load container images from inside the VM. The easiest way to set this up is to use the provided `demo-network` which will install CNI configuration to create a bridge, a veth pair connected to the bridge, and an adapter to connect the tap to Firecracker. 
+While networking support is optional for firecracker-containerd in general, it is required for remote snapshotter support because the remote snapshotter will lazily load container images from inside the VM. The easiest way to set this up is to use the provided `demo-network` which will install CNI configuration to create a bridge, a veth pair connected to the bridge, and an adapter to connect the tap to Firecracker.
 
-```
-make demo-network
+```bash
+sudo make demo-network
 ```
 
 ## Configure Firecracker
 
 If you followed the getting started or quickstart guide to setup firecracker-containerd, then Firecracker will be configured to use the default rootfs and kernel without FUSE support. In order for firecracker-containerd to work with remote snapshotters you should update `/etc/containerd/firecracker-runtime.json` to set:
 
-* `kernel_image_path` to point to your kernel built with FUSE support
-* `root_drive` to points to your rootfs with a remote snapshotter
-* `default_network_interfaces` to set up your CNI network. This network interface must be allowed to access MMDS in order to configure credentials for the remote snapshotter
+- `kernel_image_path` to point to your kernel built with FUSE support
+- `root_drive` to points to your rootfs with a remote snapshotter
+- `default_network_interfaces` to set up your CNI network. This network interface must be allowed to access MMDS in order to configure credentials for the remote snapshotter
 
 An example of this type of configuration is as follows
-```
+
+```json
 {
   "firecracker_binary_path": "/usr/local/bin/firecracker",
   "kernel_image_path": "/var/lib/firecracker-containerd/runtime/default-vmlinux.bin",
@@ -88,35 +90,51 @@ An example of this type of configuration is as follows
   "log_levels": ["debug"],
   "metrics_fifo": "fc-metrics.fifo",
   "default_network_interfaces": [
-  {
-    "AllowMMDS": true,
-    "CNIConfig": {
-      "NetworkName": "fcnet",
-      "InterfaceName": "veth0"
+    {
+      "AllowMMDS": true,
+      "CNIConfig": {
+        "NetworkName": "fcnet",
+        "InterfaceName": "veth0"
+      }
     }
-  }
-]
+  ]
 }
 ```
 
 ## Configure containerd
 
-Firecracker-containerd relies on a `demux-snapshotter` running on the host to proxy snapshotter requests to the appropriate remote snapshotter running in the appropriate VM. `/etc/firecracker-containerd/config.toml` needs to be updated to tell `firecracker-containerd` about this `demux-snapshotter`. 
+Firecracker-containerd relies on a `demux-snapshotter` running on the host to proxy snapshotter requests to the appropriate remote snapshotter running in the appropriate VM. `/etc/firecracker-containerd/config.toml` needs to be updated to tell `firecracker-containerd` about this `demux-snapshotter`.
 
 The following configuration will create a snapshotter called `proxy` which will be redirected over gRPC to the default endpoint for the `demux-snapshotter`
 
+```bash
+sudo mkdir /etc/firecracker-containerd
 ```
+
+```toml
+disabled_plugins = ["cri"]
+root = "/var/lib/firecracker-containerd/containerd"
+state = "/run/firecracker-containerd"
+[grpc]
+  address = "/run/firecracker-containerd/containerd.sock"
 [proxy_plugins]
   [proxy_plugins.proxy]
     type = "snapshot"
     address = "/var/lib/demux-snapshotter/snapshotter.sock"
+
+[debug]
+  level = "debug"
 ```
 
 ## Configure demux-snapshotter
 
 To configure the demux-snapshotter, add the following config to `/etc/demux-snapshotter/config.toml`
 
+```bash
+sudo mkdir /etc/demux-snapshotter
 ```
+
+```toml
 [snapshotter.listener]
   type = "unix"
   address = "/var/lib/demux-snapshotter/snapshotter.sock"
@@ -133,27 +151,31 @@ To configure the demux-snapshotter, add the following config to `/etc/demux-snap
 ```
 
 Create the demux snapshotter's runtime directory.
-```
-mkdir -p /var/lib/demux-snapshotter
+
+```bash
+sudo mkdir -p /var/lib/demux-snapshotter
 ```
 
 ## Start all of the host-daemons
 
-Remote snapshotters require 3 host-side daemons: 
-* `firecracker-containerd` - For running VMs/containers
-* `demux-snapshotter` - For demultiplexing snapshotter requests from firecracker-containerd to the appropriate remote-snapshotter in the appropriate VM
-* `http-address-resolver` - For mapping containerd namespace to VM vsock address (see [limitations](#limitations))
+Remote snapshotters require 3 host-side daemons:
+
+- `firecracker-containerd` - For running VMs/containers
+- `demux-snapshotter` - For demultiplexing snapshotter requests from firecracker-containerd to the appropriate remote-snapshotter in the appropriate VM
+- `http-address-resolver` - For mapping containerd namespace to VM vsock address (see [limitations](#limitations))
 
 Run each in a separate shell:
 
+```bash
+sudo firecracker-containerd --config /etc/firecracker-containerd/config.toml
 ```
-firecracker-containerd --config /etc/firecracker-containerd/config.toml
+
+```bash
+sudo snapshotter/demux-snapshotter
 ```
-```
-snapshotter/demux-snapshotter
-```
-```
-snapshotter/http-address-resolver
+
+```bash
+sudo snapshotter/http-address-resolver
 ```
 
 ## Pull a remote image
@@ -163,10 +185,13 @@ Pulling a remote image requires special configuration which is currently not imp
 ## Limitations
 
 ### Containerd namespace must be 1-1 with a VM
-  Portions of containerd's snapshotter API receive only containerd namespace and snapshotter key. In order to route those requests to the correct remote snapshotter running inside a VM, we route based on namespace. This means that we must have a unique mapping between a containerd namespace and a VM in order for requests to be fulfilled.
+
+Portions of containerd's snapshotter API receive only containerd namespace and snapshotter key. In order to route those requests to the correct remote snapshotter running inside a VM, we route based on namespace. This means that we must have a unique mapping between a containerd namespace and a VM in order for requests to be fulfilled.
 
 ### OCI Images must be converted to estargz
-  estargz images are compatible with OCI images, but OCI images must be converted to estargz to be usable with the lazy loading properties of the stargz-snapshotter. For information on how to convert and image, please see the [stargz-snapshotter's documentation](https://github.com/containerd/stargz-snapshotter/blob/v0.11.4/docs/ctr-remote.md)
-  
+
+estargz images are compatible with OCI images, but OCI images must be converted to estargz to be usable with the lazy loading properties of the stargz-snapshotter. For information on how to convert and image, please see the [stargz-snapshotter's documentation](https://github.com/containerd/stargz-snapshotter/blob/v0.11.4/docs/ctr-remote.md)
+
 ### There is no fallback to ahead-of-time pull
-  The stargz-snapshotter can normally fall back to an embedded overlay snapshotter with ahead-of-time pull if the image is not estargz. This does not work with firecracker-containerd because in this scenario, the client is responsible for unpacking the container image into the mount points provided by the snapshotter, however the client runs on the host and the mount points are isolated inside the VM.
+
+The stargz-snapshotter can normally fall back to an embedded overlay snapshotter with ahead-of-time pull if the image is not estargz. This does not work with firecracker-containerd because in this scenario, the client is responsible for unpacking the container image into the mount points provided by the snapshotter, however the client runs on the host and the mount points are isolated inside the VM.
