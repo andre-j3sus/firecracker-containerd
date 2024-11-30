@@ -16,12 +16,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/remotes/docker/config"
 	"github.com/containerd/stargz-snapshotter/fs/source"
 	fcclient "github.com/firecracker-microvm/firecracker-containerd/firecracker-control/client"
 	"github.com/firecracker-microvm/firecracker-containerd/proto"
@@ -59,6 +62,11 @@ func main() {
 		fmt.Printf("%s is not a valid image reference\n", imageRef)
 	}
 	dockerHost := refSpec.Hostname()
+	// Adjust host key for Docker Hub
+	if dockerHost == "docker.io" {
+		dockerHost = "https://index.docker.io/v1/"
+	}
+	
 	dockerUser, ok := os.LookupEnv("DOCKER_USERNAME")
 	if !ok {
 		fmt.Print("Docker username: ")
@@ -120,8 +128,14 @@ func main() {
 	}
 
 	fmt.Println("Pulling the image")
+	options := docker.ResolverOptions{
+		Hosts:  config.ConfigureHosts(ctx, config.HostOptions{DefaultScheme: "http"}),
+		//PlainHTTP: true,
+		Client: http.DefaultClient,
+	}
 	image, err := client.Pull(ctx, imageRef,
 		containerd.WithPullSnapshotter(snapshotter),
+		containerd.WithResolver(docker.NewResolver(options)),
 		containerd.WithPullUnpack,
 		// stargz labels to tell the snapshotter to lazily load the image
 		containerd.WithImageHandlerWrapper(source.AppendDefaultLabelsHandlerWrapper(imageRef, 10*1024*1024)))

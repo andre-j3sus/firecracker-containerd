@@ -14,6 +14,9 @@
         "type": "host-local",
         "subnet": "192.168.1.0/24",
         "resolvConf": "/etc/resolv.conf"
+      },
+      "dns": {
+        "nameservers": ["128.110.156.4", "1.1.1.1", "8.8.8.8"]
       }
     },
     {
