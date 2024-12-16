@@ -74,9 +74,9 @@ sudo make demo-network
 
 If you followed the getting started or quickstart guide to setup firecracker-containerd, then Firecracker will be configured to use the default rootfs and kernel without FUSE support. In order for firecracker-containerd to work with remote snapshotters you should update `/etc/containerd/firecracker-runtime.json` to set:
 
-- `kernel_image_path` to point to your kernel built with FUSE support
-- `root_drive` to points to your rootfs with a remote snapshotter
-- `default_network_interfaces` to set up your CNI network. This network interface must be allowed to access MMDS in order to configure credentials for the remote snapshotter
+* `kernel_image_path` to point to your kernel built with FUSE support
+* `root_drive` to points to your rootfs with a remote snapshotter
+* `default_network_interfaces` to set up your CNI network. This network interface must be allowed to access MMDS in order to configure credentials for the remote snapshotter
 
 An example of this type of configuration is as follows
 
