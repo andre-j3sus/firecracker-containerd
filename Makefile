@@ -98,6 +98,7 @@ $(SUBDIRS):
 
 proto:
 	DOCKER_BUILDKIT=1 docker build \
+		--network host \
 		--file tools/docker/Dockerfile.proto-builder \
 		--tag localhost/$(PROTO_BUILDER_NAME):${DOCKER_IMAGE_TAG} \
 		$(CURDIR)/tools/docker

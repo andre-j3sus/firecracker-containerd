@@ -283,6 +283,24 @@ func (s *local) ResumeVM(ctx context.Context, req *proto.ResumeVMRequest) (*type
 	return resp, nil
 }
 
+// CreateSnapshot creates a snapshot of a VM.
+func (s *local) CreateSnapshot(ctx context.Context, req *proto.CreateSnapshotRequest) (*types.Empty, error) {
+	client, err := s.shimFirecrackerClient(ctx, req.VMID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer client.Close()
+
+	resp, err := client.CreateSnapshot(ctx, req)
+	if err != nil {
+		s.logger.WithError(err).Error()
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (s *local) waitForShimToExit(ctx context.Context, vmID string) error {
 	socketAddr, err := shim.SocketAddress(ctx, s.containerdAddress, vmID)
 	if err != nil {
