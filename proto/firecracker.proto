@@ -51,6 +51,8 @@ message CreateVMRequest {
     string MemFilePath = 17;
     // Path to the file that contains the VM state to be loaded.
     string SnapshotPath = 18;
+    // Path to the disk device backing the container snapshot.
+    string ContainerSnapshotPath = 19;
 }
 
 message CreateVMResponse {
