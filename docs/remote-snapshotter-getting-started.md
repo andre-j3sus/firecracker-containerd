@@ -160,9 +160,9 @@ sudo mkdir -p /var/lib/demux-snapshotter
 
 Remote snapshotters require 3 host-side daemons:
 
-- `firecracker-containerd` - For running VMs/containers
-- `demux-snapshotter` - For demultiplexing snapshotter requests from firecracker-containerd to the appropriate remote-snapshotter in the appropriate VM
-- `http-address-resolver` - For mapping containerd namespace to VM vsock address (see [limitations](#limitations))
+* `firecracker-containerd` - For running VMs/containers
+* `demux-snapshotter` - For demultiplexing snapshotter requests from firecracker-containerd to the appropriate remote-snapshotter in the appropriate VM
+* `http-address-resolver` - For mapping containerd namespace to VM vsock address (see [limitations](#limitations))
 
 Run each in a separate shell:
 

@@ -3,7 +3,8 @@
 	url = https://github.com/opencontainers/runc
 [submodule "firecracker"]
 	path = _submodules/firecracker
-	url = https://github.com/firecracker-microvm/firecracker.git
+	url = https://github.com/andre-j3sus/firecracker.git
+	branch = vhive/v1.8-vhive-integration
 [submodule "stargz-snapshotter"]
 	path = _submodules/stargz-snapshotter
 	url = https://github.com/containerd/stargz-snapshotter
